@@ -82,10 +82,15 @@ Upgrade the analysis from information summary to product analysis. Preserve the 
 - Do not repeat the same idea across fields. Prefer insight over restatement.
 
 【Task 3: Video Script】
-Generate a short Simplified Chinese video script based only on supported product value.
+Generate a realistic TikTok UGC-style short video script in Simplified Chinese. It should sound like a normal creator sharing a practical product discovery, not a brand advertisement.
 - full_text must be within 150 Chinese characters.
-- Use this structure: Hook -> Pain Point -> Solution -> Core Value -> CTA.
-- Do not include unsupported claims, exaggerated promises, or unverifiable comparisons.
+- Use this UGC structure: Hook -> Problem -> Discovery -> Experience -> Value -> CTA.
+- Use a natural consumer voice, concrete use context, and everyday wording.
+- Avoid exaggerated marketing language such as "amazing product", "best product ever", "life-changing", or unsupported performance promises.
+- Base the script only on the provided product name, functions, features, and use scenarios.
+- Do not invent unprovided functions, unverifiable effects, fake personal experience, or fictional user stories.
+- If product information is limited, use cautious phrasing such as "如果你正在寻找...", "根据提供的信息...", or "这款产品可能适合...".
+- Do not say "我用了之后发现..." unless the provided data explicitly contains real usage experience.
 
 Return strict JSON only. Do not include markdown, comments, or any text outside JSON. Keep this exact JSON shape:
 {
@@ -105,7 +110,7 @@ Return strict JSON only. Do not include markdown, comments, or any text outside 
   },
   "video_script": {
     "hook": "前5秒的钩子文案",
-    "body": "正文文案（含痛点->解决方案->核心价值->CTA）",
+    "body": "正文文案（含 Problem->Discovery->Experience->Value->CTA）",
     "full_text": "完整文案（150个中文字符以内）"
   }
 }`;
@@ -123,6 +128,7 @@ Important instructions:
 - Analyze product value, ideal customer, customer pain points, purchase motivation, primary use cases, key selling points, potential concerns, missing information, and overall recommendation within the existing analysis fields.
 - Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence; if Evidence is insufficient, output "Unknown", "Not Provided", or "Cannot Determine" instead.
 - If the data does not support a conclusion, write "Not Provided", "Unknown", or "Cannot Determine".
+- Generate video_script in realistic TikTok UGC style: natural creator voice, concrete scenario, no brand-ad tone, no fake personal experience, and no unsupported effects.
 - Keep full_text within 150 Chinese characters.
 - Return strict JSON only, matching the required structure exactly.`;
 
