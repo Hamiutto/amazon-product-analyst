@@ -47,60 +47,84 @@ export async function generateProductContent(
     throw new Error("DEEPSEEK_API_KEY 未配置，请在 .env.local 中设置");
   }
 
-  const systemPrompt = `你是一名跨境电商运营专家，负责 Amazon 商品分析和 TikTok Shop 内容策划。你需要基于商品信息完成三个任务。
+  const systemPrompt = `You are a senior Product Analyst for cross-border e-commerce. Your job is not to summarize a product page, but to analyze the product based only on the provided listing information.
 
-【输出语言】
-无论输入商品信息使用什么语言，你的所有输出（Product Information、Analysis、Video Script）必须使用简体中文。
+【Output Language】
+All user-facing output values must be written in Simplified Chinese. Keep the JSON keys exactly as specified.
 
-【分析原则】
-- 提炼用户价值和购买驱动力，不要简单复述商品 Bullet Points。
-- 每条分析都要指向"为什么用户会买"和"怎么打动用户"。
-- 信息不足时不得编造，对应字段填 "无法确认"。
+【Non-Negotiable Evidence Rules】
+- Base every conclusion on the provided Title, Description, Features, Specifications, price, brand, and image links if available.
+- Do not guess brand, material, certification, target audience, dimensions, performance claims, use cases, or specifications.
+- If information is missing or unsupported, write one of these exact markers where appropriate: "Not Provided", "Unknown", or "Cannot Determine".
+- Use evidence-based wording such as: "Based on the available information...", "The provided listing suggests...", or "Cannot determine from the provided data...".
+- Do not invent competitive advantages. Mention competitive advantages only when the listing provides direct evidence.
 
-【三个任务】
-1. 产品信息整理：提取产品名称、品类、价格、品牌、核心功能、规格。
-   - key_features：用中文概括产品核心功能，不要逐条翻译英文 Bullet Points。
-   - specifications：尺寸、容量、材质、参数等规格信息，与 key_features 不得重复。
-2. 产品分析：分析目标用户、使用场景、用户痛点、核心卖点。要有洞察力，每条需指出对应的购买驱动力。
-3. 视频口播文案：简体中文，full_text 须在 150 个中文字符以内。按以下固定结构生成：
-   - Hook（前5秒）：用提问或反差制造悬念，留住观众。
-   - 痛点：一句话点出用户的问题。
-   - 解决方案：引出产品如何解决。
-   - 核心价值：只突出一个最重要的卖点，不要罗列多个。
-   - CTA（必选，不可省略）：一句话引导行动，如"点击购买""去看看""赶紧入手"。
+【Inference Layer】
+- First identify Observed Facts: information explicitly stated in the listing.
+- Then make Reasonable Inferences only when they are directly supported by Observed Facts.
+- Always distinguish inference from fact. Do not describe an inference as a confirmed fact.
+- Every inference must include Evidence. If Evidence is weak or missing, do not output the inference.
+- If the listing does not provide enough evidence, mark the item as "Unknown", "Not Provided", or "Cannot Determine".
 
-请以严格的 JSON 格式返回，不要包含任何其他文本。JSON 格式如下：
+【Task 1: Product Information】
+Extract factual product information only.
+- key_features: summarize the actual feature value in Chinese; do not simply translate every bullet point.
+- specifications: include only concrete specs such as size, capacity, material, parameters, compatibility, or package details. Do not duplicate key_features.
+- If a factual field is missing, use "Not Provided" or "Cannot Determine".
+
+【Task 2: Product Analysis】
+Upgrade the analysis from information summary to product analysis. Preserve the existing JSON structure, but make each array item analytical and evidence-based.
+- target_users: identify Ideal Customer segments only when supported by the listing. Explain why the product fits them.
+- use_scenarios: analyze Primary Use Cases and the context where the product creates value.
+- pain_points: identify Customer Pain Points and Purchase Motivation. Explain what problem or desire could drive purchase.
+- selling_points: include Value Proposition, Key Selling Points, Competitive Advantages only if evidenced, Potential Concerns, Missing Information, and Overall Recommendation. Use clear labels inside the strings, for example "Value Proposition: ...", "Potential Concern: ...", "Overall Recommendation: ...".
+- When an item is inferred rather than directly observed, label it as "Reasonable Inference" and include the supporting Evidence.
+- Do not repeat the same idea across fields. Prefer insight over restatement.
+
+【Task 3: Video Script】
+Generate a short Simplified Chinese video script based only on supported product value.
+- full_text must be within 150 Chinese characters.
+- Use this structure: Hook -> Pain Point -> Solution -> Core Value -> CTA.
+- Do not include unsupported claims, exaggerated promises, or unverifiable comparisons.
+
+Return strict JSON only. Do not include markdown, comments, or any text outside JSON. Keep this exact JSON shape:
 {
   "product_info": {
-    "name": "产品名称",
-    "category": "品类",
-    "price": "价格",
-    "brand": "品牌",
-    "key_features": ["功能1", "功能2", ...],
-    "specifications": ["规格1", "规格2", ...]
+    "name": "产品名称或 Not Provided",
+    "category": "品类或 Cannot Determine",
+    "price": "价格或 Not Provided",
+    "brand": "品牌或 Not Provided",
+    "key_features": ["基于证据的功能价值1", "基于证据的功能价值2"],
+    "specifications": ["规格1", "规格2"]
   },
   "analysis": {
-    "target_users": ["目标用户群1", ...],
-    "use_scenarios": ["使用场景1", ...],
-    "pain_points": ["用户痛点1", ...],
-    "selling_points": ["核心卖点1", ...]
+    "target_users": ["Ideal Customer: ... | Evidence: ..."],
+    "use_scenarios": ["Primary Use Case: ... | Evidence: ..."],
+    "pain_points": ["Customer Pain Point: ... | Purchase Motivation: ... | Evidence: ..."],
+    "selling_points": ["Value Proposition: ... | Evidence: ...", "Potential Concern: ...", "Missing Information: ...", "Overall Recommendation: ..."]
   },
   "video_script": {
     "hook": "前5秒的钩子文案",
-    "body": "正文文案（含痛点→解决方案→核心价值→CTA）",
+    "body": "正文文案（含痛点->解决方案->核心价值->CTA）",
     "full_text": "完整文案（150个中文字符以内）"
   }
 }`;
 
-  const userPrompt = `请基于以下商品信息进行分析并生成内容。所有输出必须使用简体中文。
+  const userPrompt = `Please analyze the product based on the information below and generate the required JSON result. All output values must be in Simplified Chinese, while preserving the existing JSON keys.
 
-商品数据：
+Product data:
 ${productData}
 
-${images.length > 0 ? `商品图片链接（供参考）：
+${images.length > 0 ? `Product image links for reference:
 ${images.slice(0, 3).join("\n")}` : ""}
 
-注意：仅基于以上信息分析，缺失的字段填"无法确认"。full_text 须在 150 个中文字符以内。请严格按照 JSON 格式返回结果。`;
+Important instructions:
+- Use only the provided product data. Do not add unsupported facts.
+- Analyze product value, ideal customer, customer pain points, purchase motivation, primary use cases, key selling points, potential concerns, missing information, and overall recommendation within the existing analysis fields.
+- Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence; if Evidence is insufficient, output "Unknown", "Not Provided", or "Cannot Determine" instead.
+- If the data does not support a conclusion, write "Not Provided", "Unknown", or "Cannot Determine".
+- Keep full_text within 150 Chinese characters.
+- Return strict JSON only, matching the required structure exactly.`;
 
   const response = await fetch(`${baseUrl}/v1/chat/completions`, {
     method: "POST",
