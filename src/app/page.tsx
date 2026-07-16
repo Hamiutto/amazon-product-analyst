@@ -40,6 +40,12 @@ const STATUS = {
 
 type Status = (typeof STATUS)[keyof typeof STATUS];
 type CopyStatus = "idle" | "success" | "error";
+type CopyTarget = "productInfo" | "productAnalysis" | "videoScript";
+
+interface CopyFeedback {
+  target: CopyTarget | null;
+  status: CopyStatus;
+}
 
 /**
  * 前端 Amazon URL 格式校验
@@ -75,6 +81,37 @@ function friendlyError(msg: string): string {
   return msg;
 }
 
+function formatListSection(title: string, items: string[]): string {
+  if (items.length === 0) return "";
+  return `${title}:\n${items.map((item) => `- ${item}`).join("\n")}`;
+}
+
+function formatProductInfoCopyText(productInfo: ProductInfo): string {
+  const content = [
+    productInfo.name ? `产品名称: ${productInfo.name}` : "",
+    productInfo.category ? `品类: ${productInfo.category}` : "",
+    productInfo.price ? `价格: ${productInfo.price}` : "",
+    productInfo.brand ? `品牌: ${productInfo.brand}` : "",
+    formatListSection("核心功能", productInfo.key_features),
+    formatListSection("规格", productInfo.specifications),
+  ]
+    .filter(Boolean);
+
+  return content.length > 0 ? ["产品信息整理", ...content].join("\n\n") : "";
+}
+
+function formatProductAnalysisCopyText(analysis: ProductAnalysis): string {
+  const content = [
+    formatListSection("目标用户", analysis.target_users),
+    formatListSection("使用场景", analysis.use_scenarios),
+    formatListSection("用户痛点", analysis.pain_points),
+    formatListSection("核心卖点", analysis.selling_points),
+  ]
+    .filter(Boolean);
+
+  return content.length > 0 ? ["产品分析", ...content].join("\n\n") : "";
+}
+
 export default function Home() {
   const [url, setUrl] = useState("");
   const [fallbackText, setFallbackText] = useState("");
@@ -82,11 +119,10 @@ export default function Home() {
   const [result, setResult] = useState<AIResult | null>(null);
   const [error, setError] = useState("");
   const [images, setImages] = useState<string[]>([]);
-  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
+  const [copyFeedback, setCopyFeedback] = useState<CopyFeedback>({ target: null, status: "idle" });
 
   // 输入框 ref，用于自动聚焦
   const urlInputRef = useRef<HTMLInputElement>(null);
-  const copyStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 重置或分析完成后自动聚焦输入框
   useEffect(() => {
@@ -106,12 +142,14 @@ export default function Home() {
   }, [status]);
 
   useEffect(() => {
-    return () => {
-      if (copyStatusTimerRef.current) {
-        clearTimeout(copyStatusTimerRef.current);
-      }
-    };
-  }, []);
+    if (copyFeedback.status === "idle") return;
+
+    const timer = setTimeout(() => {
+      setCopyFeedback({ target: null, status: "idle" });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [copyFeedback]);
 
   const handleAnalyze = async () => {
     // 降级模式：直接用 fallbackText
@@ -175,11 +213,7 @@ export default function Home() {
     setResult(null);
     setError("");
     setImages([]);
-    setCopyStatus("idle");
-    if (copyStatusTimerRef.current) {
-      clearTimeout(copyStatusTimerRef.current);
-      copyStatusTimerRef.current = null;
-    }
+    setCopyFeedback({ target: null, status: "idle" });
     setTimeout(() => {
       urlInputRef.current?.focus();
     }, 0);
@@ -198,21 +232,13 @@ export default function Home() {
   };
 
   /**
-   * 复制完整口播文案到剪贴板
+   * 复制当前结果卡片文本到剪贴板
    */
-  const handleCopyScript = async () => {
-    if (!result?.video_script.full_text) return;
-
-    const copyText = result.video_script.full_text;
+  const handleCopy = async (target: CopyTarget, copyText: string) => {
+    if (!copyText) return;
 
     const updateCopyStatus = (nextStatus: CopyStatus) => {
-      setCopyStatus(nextStatus);
-      if (copyStatusTimerRef.current) {
-        clearTimeout(copyStatusTimerRef.current);
-      }
-      copyStatusTimerRef.current = setTimeout(() => {
-        setCopyStatus("idle");
-      }, 2000);
+      setCopyFeedback({ target, status: nextStatus });
     };
 
     try {
@@ -237,6 +263,21 @@ export default function Home() {
       updateCopyStatus(didFallbackCopy ? "success" : "error");
       document.body.removeChild(textarea);
     }
+  };
+
+  const getCopyStatus = (target: CopyTarget): CopyStatus => {
+    return copyFeedback.target === target ? copyFeedback.status : "idle";
+  };
+
+  const renderCopyButton = (target: CopyTarget, copyText: string) => {
+    if (!copyText.trim()) return null;
+
+    return (
+      <CopyButton
+        status={getCopyStatus(target)}
+        onClick={() => handleCopy(target, copyText)}
+      />
+    );
   };
 
   /**
@@ -384,6 +425,7 @@ export default function Home() {
               icon="📋"
               title="产品信息整理"
               color="blue"
+              action={renderCopyButton("productInfo", formatProductInfoCopyText(result.product_info))}
             >
               <div className="space-y-3">
                 <InfoRow label="产品名称" value={result.product_info.name} />
@@ -422,6 +464,7 @@ export default function Home() {
               icon="💡"
               title="产品分析"
               color="purple"
+              action={renderCopyButton("productAnalysis", formatProductAnalysisCopyText(result.analysis))}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <AnalysisSection
@@ -452,22 +495,7 @@ export default function Home() {
               icon="🎬"
               title="视频口播文案"
               color="green"
-              action={
-                result.video_script.full_text ? (
-                  <button
-                    type="button"
-                    onClick={handleCopyScript}
-                    className={`min-w-24 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      copyStatus === "error"
-                        ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
-                        : "bg-green-600 text-white hover:bg-green-700"
-                    }`}
-                    aria-live="polite"
-                  >
-                    {copyStatus === "success" ? "已复制" : copyStatus === "error" ? "复制失败" : "复制"}
-                  </button>
-                ) : null
-              }
+              action={renderCopyButton("videoScript", result.video_script.full_text)}
             >
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -557,6 +585,29 @@ function ResultCard({
 }
 
 // 子组件：信息行
+function CopyButton({
+  status,
+  onClick,
+}: {
+  status: CopyStatus;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`min-w-24 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+        status === "error"
+          ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+          : "bg-green-600 text-white hover:bg-green-700"
+      }`}
+      aria-live="polite"
+    >
+      {status === "success" ? "已复制" : status === "error" ? "复制失败" : "复制"}
+    </button>
+  );
+}
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   if (!value) return null;
   return (
