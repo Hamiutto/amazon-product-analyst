@@ -77,17 +77,20 @@ Extract factual product information only.
 
 【Task 2: Product Analysis】
 Upgrade the analysis from information summary to product analysis. Preserve the existing JSON structure, but make each array item concise, natural, and fully Chinese.
-- target_users: describe supported user groups in Chinese and explain why the product fits them. Do not output "Ideal Customer" labels.
-- use_scenarios: describe practical use cases in Chinese and the value created in those contexts. Do not output "Primary Use Case" labels.
-- pain_points: describe user pain points and purchase motivations in Chinese. Do not output "Customer Pain Point", "Purchase Motivation", or "Evidence" labels.
-- selling_points: describe user-facing selling points, value, cautious recommendation, or information that should be checked before purchase in Chinese. Do not output "Value Proposition", "Potential Concern", "Missing Information", or "Overall Recommendation" labels.
+- target_users: preferably output 2 to 3 distinct supported user groups in Chinese and explain why the product fits them. Do not output "Ideal Customer" labels.
+- use_scenarios: preferably output 2 to 4 distinct practical use cases in Chinese and the value created in those contexts. Do not output "Primary Use Case" labels.
+- pain_points: preferably output 2 to 3 distinct user pain points in Chinese, and explain why the product can address each pain point. Do not output "Customer Pain Point", "Purchase Motivation", or "Evidence" labels.
+- selling_points: preferably output 3 to 5 distinct user-facing value points in Chinese, focusing on why users would buy. Do not output "Value Proposition", "Potential Concern", "Missing Information", or "Overall Recommendation" labels.
+- Do not merely rewrite Bullet Points. Prioritize purchase motivation, user value, and differentiated benefits.
 - Keep evidence-based reasoning internal. The final content should be clean product analysis for operators, not a visible chain-of-thought or audit trail.
 - Do not repeat the same idea across fields. Prefer concise insight over restatement.
 
 【Task 3: Video Script】
 Generate a realistic TikTok UGC-style short video script in Simplified Chinese. It should sound like a normal creator sharing a practical product discovery, not a brand advertisement.
 - full_text must be within 150 Chinese characters.
+- Prefer 100 to 150 Chinese characters when enough product information is available; do not make the script short just for brevity.
 - Use this UGC structure: Hook -> Problem -> Discovery -> Experience -> Value -> CTA.
+- The script should include Hook, Pain Point, Product Value, Use Scenario, and a natural CTA.
 - Use a natural Chinese spoken style, concrete use context, and everyday wording. The final script should sound like something a creator can say directly on camera.
 - Do not show section labels such as Hook, Problem, Discovery, Experience, Value, or CTA in the final text.
 - Prefer 3 to 5 short spoken sentences. Keep the rhythm conversational and avoid stiff product-introduction wording.
@@ -139,10 +142,12 @@ ${images.slice(0, 3).join("\n")}` : ""}
 Important instructions:
 - Use only the provided product data. Do not add unsupported facts.
 - Analyze product value, ideal customer, customer pain points, purchase motivation, primary use cases, key selling points, potential concerns, missing information, and overall recommendation within the existing analysis fields.
+- For analysis completeness, prefer 2-3 target users, 2-4 use scenarios, 2-3 pain points with why the product can address them, and 3-5 selling points focused on purchase motivation.
 - Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence internally; if Evidence is insufficient, output "未知", "未提供", or "无法判断" instead.
 - Keep Observed Facts, Reasonable Inferences, and Evidence checks internal. Do not expose these labels, English analysis headings, or pipe-separated reasoning in the final JSON values.
 - If the data does not support a conclusion, write "未提供", "未知", or "无法判断".
 - Generate video_script in realistic TikTok UGC style: natural creator voice, concrete scenario, no brand-ad tone, no fake personal experience, and no unsupported effects.
+- Prefer 100-150 Chinese characters for full_text and include Hook, Pain Point, Product Value, Use Scenario, and a natural CTA.
 - Before returning JSON, run an internal quality check for unsupported facts, hallucinated details, exaggerated marketing claims, overconfident wording, and the 150-character full_text limit.
 - Keep full_text within 150 Chinese characters.
 - Return strict JSON only, matching the required structure exactly.`;
