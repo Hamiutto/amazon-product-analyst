@@ -39,6 +39,7 @@ const STATUS = {
 } as const;
 
 type Status = (typeof STATUS)[keyof typeof STATUS];
+type CopyStatus = "idle" | "success" | "error";
 
 /**
  * 前端 Amazon URL 格式校验
@@ -81,10 +82,11 @@ export default function Home() {
   const [result, setResult] = useState<AIResult | null>(null);
   const [error, setError] = useState("");
   const [images, setImages] = useState<string[]>([]);
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>("idle");
 
   // 输入框 ref，用于自动聚焦
   const urlInputRef = useRef<HTMLInputElement>(null);
+  const copyStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 重置或分析完成后自动聚焦输入框
   useEffect(() => {
@@ -102,6 +104,14 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [status]);
+
+  useEffect(() => {
+    return () => {
+      if (copyStatusTimerRef.current) {
+        clearTimeout(copyStatusTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleAnalyze = async () => {
     // 降级模式：直接用 fallbackText
@@ -184,23 +194,39 @@ export default function Home() {
    */
   const handleCopyScript = async () => {
     if (!result?.video_script.full_text) return;
+
+    const copyText = result.video_script.full_text;
+
+    const updateCopyStatus = (nextStatus: CopyStatus) => {
+      setCopyStatus(nextStatus);
+      if (copyStatusTimerRef.current) {
+        clearTimeout(copyStatusTimerRef.current);
+      }
+      copyStatusTimerRef.current = setTimeout(() => {
+        setCopyStatus("idle");
+      }, 2000);
+    };
+
     try {
-      await navigator.clipboard.writeText(result.video_script.full_text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(copyText);
+      updateCopyStatus("success");
     } catch {
       // 降级方案：用 execCommand
       const textarea = document.createElement("textarea");
-      textarea.value = result.video_script.full_text;
+      textarea.value = copyText;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
       document.body.appendChild(textarea);
       textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      let didFallbackCopy = false;
       try {
-        document.execCommand("copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        didFallbackCopy = document.execCommand("copy");
       } catch {
         // 放弃
       }
+      updateCopyStatus(didFallbackCopy ? "success" : "error");
       document.body.removeChild(textarea);
     }
   };
@@ -418,6 +444,22 @@ export default function Home() {
               icon="🎬"
               title="视频口播文案"
               color="green"
+              action={
+                result.video_script.full_text ? (
+                  <button
+                    type="button"
+                    onClick={handleCopyScript}
+                    className={`min-w-24 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      copyStatus === "error"
+                        ? "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {copyStatus === "success" ? "已复制" : copyStatus === "error" ? "复制失败" : "复制"}
+                  </button>
+                ) : null
+              }
             >
               <div className="space-y-4">
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -435,15 +477,9 @@ export default function Home() {
                       <span className="text-xs text-slate-400">
                         {result.video_script.full_text.length} 字
                       </span>
-                      <button
-                        onClick={handleCopyScript}
-                        className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition"
-                      >
-                        {copied ? "✓ 已复制" : "复制文案"}
-                      </button>
                     </div>
                   </div>
-                  <p className="text-slate-800 leading-relaxed">
+                  <p className="text-slate-800 leading-relaxed whitespace-pre-line">
                     {result.video_script.full_text}
                   </p>
                 </div>
@@ -484,11 +520,13 @@ function ResultCard({
   icon,
   title,
   color,
+  action,
   children,
 }: {
   icon: string;
   title: string;
   color: "blue" | "purple" | "green";
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const colorMap = {
@@ -498,10 +536,13 @@ function ResultCard({
   };
   return (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 border-l-4 ${colorMap[color]} p-6`}>
-      <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <span>{icon}</span>
-        {title}
-      </h2>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <span>{icon}</span>
+          {title}
+        </h2>
+        {action}
+      </div>
       {children}
     </div>
   );
