@@ -51,11 +51,13 @@ export async function generateProductContent(
 
 【Output Language】
 All user-facing output values must be written in Simplified Chinese. Keep the JSON keys exactly as specified.
+- Do not expose English analysis labels in final user-facing values. Internal terms such as "Observed Facts", "Reasonable Inference", "Evidence", "Value Proposition", "Ideal Customer", "Potential Concern", and "Overall Recommendation" are reasoning tools only.
+- Final array items should read like polished Chinese product-tool output, not an AI reasoning report. Do not use pipe separators such as "| Evidence:" in final values.
 
 【Non-Negotiable Evidence Rules】
 - Base every conclusion on the provided Title, Description, Features, Specifications, price, brand, and image links if available.
 - Do not guess brand, material, certification, target audience, dimensions, performance claims, use cases, or specifications.
-- If information is missing or unsupported, write one of these exact markers where appropriate: "Not Provided", "Unknown", or "Cannot Determine".
+- If information is missing or unsupported, write one of these Chinese markers where appropriate: "未提供", "未知", or "无法判断".
 - Use evidence-based wording such as: "Based on the available information...", "The provided listing suggests...", or "Cannot determine from the provided data...".
 - Do not invent competitive advantages. Mention competitive advantages only when the listing provides direct evidence.
 
@@ -64,28 +66,31 @@ All user-facing output values must be written in Simplified Chinese. Keep the JS
 - Then make Reasonable Inferences only when they are directly supported by Observed Facts.
 - Always distinguish inference from fact. Do not describe an inference as a confirmed fact.
 - Every inference must include Evidence. If Evidence is weak or missing, do not output the inference.
-- If the listing does not provide enough evidence, mark the item as "Unknown", "Not Provided", or "Cannot Determine".
+- If the listing does not provide enough evidence, mark the item as "未知", "未提供", or "无法判断".
+- This inference layer is internal. Do not reveal the reasoning labels in the final JSON values.
 
 【Task 1: Product Information】
 Extract factual product information only.
 - key_features: summarize the actual feature value in Chinese; do not simply translate every bullet point.
 - specifications: include only concrete specs such as size, capacity, material, parameters, compatibility, or package details. Do not duplicate key_features.
-- If a factual field is missing, use "Not Provided" or "Cannot Determine".
+- If a factual field is missing, use "未提供" or "无法判断".
 
 【Task 2: Product Analysis】
-Upgrade the analysis from information summary to product analysis. Preserve the existing JSON structure, but make each array item analytical and evidence-based.
-- target_users: identify Ideal Customer segments only when supported by the listing. Explain why the product fits them.
-- use_scenarios: analyze Primary Use Cases and the context where the product creates value.
-- pain_points: identify Customer Pain Points and Purchase Motivation. Explain what problem or desire could drive purchase.
-- selling_points: include Value Proposition, Key Selling Points, Competitive Advantages only if evidenced, Potential Concerns, Missing Information, and Overall Recommendation. Use clear labels inside the strings, for example "Value Proposition: ...", "Potential Concern: ...", "Overall Recommendation: ...".
-- When an item is inferred rather than directly observed, label it as "Reasonable Inference" and include the supporting Evidence.
-- Do not repeat the same idea across fields. Prefer insight over restatement.
+Upgrade the analysis from information summary to product analysis. Preserve the existing JSON structure, but make each array item concise, natural, and fully Chinese.
+- target_users: describe supported user groups in Chinese and explain why the product fits them. Do not output "Ideal Customer" labels.
+- use_scenarios: describe practical use cases in Chinese and the value created in those contexts. Do not output "Primary Use Case" labels.
+- pain_points: describe user pain points and purchase motivations in Chinese. Do not output "Customer Pain Point", "Purchase Motivation", or "Evidence" labels.
+- selling_points: describe user-facing selling points, value, cautious recommendation, or information that should be checked before purchase in Chinese. Do not output "Value Proposition", "Potential Concern", "Missing Information", or "Overall Recommendation" labels.
+- Keep evidence-based reasoning internal. The final content should be clean product analysis for operators, not a visible chain-of-thought or audit trail.
+- Do not repeat the same idea across fields. Prefer concise insight over restatement.
 
 【Task 3: Video Script】
 Generate a realistic TikTok UGC-style short video script in Simplified Chinese. It should sound like a normal creator sharing a practical product discovery, not a brand advertisement.
 - full_text must be within 150 Chinese characters.
 - Use this UGC structure: Hook -> Problem -> Discovery -> Experience -> Value -> CTA.
-- Use a natural consumer voice, concrete use context, and everyday wording.
+- Use a natural Chinese spoken style, concrete use context, and everyday wording. The final script should sound like something a creator can say directly on camera.
+- Do not show section labels such as Hook, Problem, Discovery, Experience, Value, or CTA in the final text.
+- Prefer 3 to 5 short spoken sentences. Keep the rhythm conversational and avoid stiff product-introduction wording.
 - Avoid exaggerated marketing language such as "amazing product", "best product ever", "life-changing", or unsupported performance promises.
 - Base the script only on the provided product name, functions, features, and use scenarios.
 - Do not invent unprovided functions, unverifiable effects, fake personal experience, or fictional user stories.
@@ -94,7 +99,7 @@ Generate a realistic TikTok UGC-style short video script in Simplified Chinese. 
 
 【AI Quality Check Layer】
 Before returning the final JSON, silently review and revise the output:
-- Evidence Validation: confirm every analysis conclusion is supported by the provided Title, Description, Features, Specifications, price, brand, or image links. If no evidence exists, replace the claim with "Not Provided", "Unknown", or "Cannot Determine".
+- Evidence Validation: confirm every analysis conclusion is supported by the provided Title, Description, Features, Specifications, price, brand, or image links. If no evidence exists, replace the claim with "未提供", "未知", or "无法判断".
 - Hallucination Detection: remove any unprovided brand, material, specification, certification, user persona, usage experience, or effect promise.
 - Marketing Claim Review: remove absolute or unverifiable claims such as "Best", "Number one", "Perfect", "Guaranteed", "Life-changing", "100% effective", or similar exaggerated wording.
 - Confidence Calibration: when evidence is limited, use cautious wording such as "May", "Could", "Based on available information", or "Cannot determine" instead of overconfident conclusions.
@@ -103,22 +108,22 @@ Before returning the final JSON, silently review and revise the output:
 Return strict JSON only. Do not include markdown, comments, or any text outside JSON. Keep this exact JSON shape:
 {
   "product_info": {
-    "name": "产品名称或 Not Provided",
-    "category": "品类或 Cannot Determine",
-    "price": "价格或 Not Provided",
-    "brand": "品牌或 Not Provided",
+    "name": "产品名称或未提供",
+    "category": "品类或无法判断",
+    "price": "价格或未提供",
+    "brand": "品牌或未提供",
     "key_features": ["基于证据的功能价值1", "基于证据的功能价值2"],
     "specifications": ["规格1", "规格2"]
   },
   "analysis": {
-    "target_users": ["Ideal Customer: ... | Evidence: ..."],
-    "use_scenarios": ["Primary Use Case: ... | Evidence: ..."],
-    "pain_points": ["Customer Pain Point: ... | Purchase Motivation: ... | Evidence: ..."],
-    "selling_points": ["Value Proposition: ... | Evidence: ...", "Potential Concern: ...", "Missing Information: ...", "Overall Recommendation: ..."]
+    "target_users": ["适合的人群与原因，使用自然中文表达"],
+    "use_scenarios": ["具体使用场景与场景价值，使用自然中文表达"],
+    "pain_points": ["用户痛点与购买动机，使用自然中文表达"],
+    "selling_points": ["核心卖点、购买价值或需确认的信息，使用自然中文表达"]
   },
   "video_script": {
     "hook": "前5秒的钩子文案",
-    "body": "正文文案（含 Problem->Discovery->Experience->Value->CTA）",
+    "body": "自然中文口播正文，不显示结构标签",
     "full_text": "完整文案（150个中文字符以内）"
   }
 }`;
@@ -134,8 +139,9 @@ ${images.slice(0, 3).join("\n")}` : ""}
 Important instructions:
 - Use only the provided product data. Do not add unsupported facts.
 - Analyze product value, ideal customer, customer pain points, purchase motivation, primary use cases, key selling points, potential concerns, missing information, and overall recommendation within the existing analysis fields.
-- Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence; if Evidence is insufficient, output "Unknown", "Not Provided", or "Cannot Determine" instead.
-- If the data does not support a conclusion, write "Not Provided", "Unknown", or "Cannot Determine".
+- Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence internally; if Evidence is insufficient, output "未知", "未提供", or "无法判断" instead.
+- Keep Observed Facts, Reasonable Inferences, and Evidence checks internal. Do not expose these labels, English analysis headings, or pipe-separated reasoning in the final JSON values.
+- If the data does not support a conclusion, write "未提供", "未知", or "无法判断".
 - Generate video_script in realistic TikTok UGC style: natural creator voice, concrete scenario, no brand-ad tone, no fake personal experience, and no unsupported effects.
 - Before returning JSON, run an internal quality check for unsupported facts, hallucinated details, exaggerated marketing claims, overconfident wording, and the 150-character full_text limit.
 - Keep full_text within 150 Chinese characters.

@@ -152,8 +152,9 @@ export default function Home() {
   }, [copyFeedback]);
 
   const handleAnalyze = async () => {
+    const isFallbackMode = status === STATUS.FALLBACK;
     // 降级模式：直接用 fallbackText
-    if (status === STATUS.FALLBACK) {
+    if (isFallbackMode) {
       if (!fallbackText.trim()) return;
     } else {
       // 正常模式：前端校验 URL
@@ -165,6 +166,9 @@ export default function Home() {
       }
     }
 
+    if (!isFallbackMode) {
+      setFallbackText("");
+    }
     setStatus(STATUS.LOADING);
     setError("");
     setResult(null);
@@ -176,7 +180,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: url.trim(),
-          fallbackText: fallbackText.trim() || undefined,
+          fallbackText: isFallbackMode ? fallbackText.trim() : undefined,
         }),
       });
 
