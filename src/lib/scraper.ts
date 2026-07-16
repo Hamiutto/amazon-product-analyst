@@ -49,11 +49,76 @@ function getRandomUserAgent(): string {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
+type PageType =
+  | "Product Page"
+  | "Robot Check"
+  | "CAPTCHA"
+  | "Access Denied"
+  | "Sign In"
+  | "Unknown";
+
+type FallbackReason =
+  | `HTTP_${number}`
+  | "CAPTCHA"
+  | "ROBOT_CHECK"
+  | "ACCESS_DENIED"
+  | "SIGN_IN"
+  | "SELECTOR_EMPTY"
+  | "TIMEOUT"
+  | "UNKNOWN";
+
+function logScrapeDiagnostic(stage: string, data: Record<string, unknown>) {
+  console.info(`[Amazon Scraper][${stage}]`, data);
+}
+
+function detectPageType(html: string, $: cheerio.CheerioAPI, htmlTitle: string): PageType {
+  const pageText = `${htmlTitle}\n${html.slice(0, 10000)}`.toLowerCase();
+
+  if (pageText.includes("robot check")) return "Robot Check";
+  if (pageText.includes("captcha") || pageText.includes("/errors/validatecaptcha")) return "CAPTCHA";
+  if (pageText.includes("access denied") || pageText.includes("dogs of amazon")) return "Access Denied";
+  if (pageText.includes("sign in") || pageText.includes("authentication required")) return "Sign In";
+  if ($("#productTitle").length > 0 || $("#dp").length > 0) return "Product Page";
+
+  return "Unknown";
+}
+
+function getFallbackReason(pageType: PageType): FallbackReason {
+  switch (pageType) {
+    case "CAPTCHA":
+      return "CAPTCHA";
+    case "Robot Check":
+      return "ROBOT_CHECK";
+    case "Access Denied":
+      return "ACCESS_DENIED";
+    case "Sign In":
+      return "SIGN_IN";
+    default:
+      return "SELECTOR_EMPTY";
+  }
+}
+
+function getHttpFallbackReason(status: number): FallbackReason {
+  return `HTTP_${status}` as FallbackReason;
+}
+
+function getCatchFallbackReason(error: unknown): FallbackReason {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (error.name === "AbortError" || error.name === "TimeoutError" || message.includes("timeout")) {
+      return "TIMEOUT";
+    }
+  }
+  return "UNKNOWN";
+}
+
 /**
  * 从 Amazon 商品页面提取商品信息
  * 策略：先用 Cheerio 提取 HTML，再从 JSON-LD 结构化数据补充
  */
 export async function scrapeAmazonProduct(url: string): Promise<RawProductData> {
+  logScrapeDiagnostic("Start", { url });
+
   try {
     const ua = getRandomUserAgent();
     
@@ -78,12 +143,27 @@ export async function scrapeAmazonProduct(url: string): Promise<RawProductData> 
       signal: AbortSignal.timeout(15000),
     });
 
+    logScrapeDiagnostic("HTTP", {
+      status: response.status,
+      finalUrl: response.url,
+      redirected: response.redirected,
+    });
+
     if (!response.ok) {
+      logScrapeDiagnostic("Fallback Reason", {
+        reason: getHttpFallbackReason(response.status),
+        status: response.status,
+      });
       return createFallback(`HTTP ${response.status}: 无法访问商品页面`);
     }
 
     const html = await response.text();
     const $ = cheerio.load(html);
+    const htmlTitle = $("title").first().text().trim().replace(/\s+/g, " ");
+    const pageType = detectPageType(html, $, htmlTitle);
+
+    logScrapeDiagnostic("HTML", { htmlTitle });
+    logScrapeDiagnostic("Page Detection", { pageType });
 
     // === 策略 1: 从 HTML 元素直接提取 ===
     const title =
@@ -191,6 +271,14 @@ export async function scrapeAmazonProduct(url: string): Promise<RawProductData> 
     if (jsonLdImage && !finalImages.includes(jsonLdImage)) finalImages.push(jsonLdImage);
     if (metaImage && !finalImages.includes(metaImage)) finalImages.push(metaImage);
 
+    logScrapeDiagnostic("Selector Result", {
+      productTitle: Boolean(finalTitle),
+      price: Boolean(finalPrice),
+      features: features.length,
+      description: Boolean(finalDescription),
+      images: finalImages.length,
+    });
+
     // 组装原始文本
     const rawText = [
       finalTitle ? `Title: ${finalTitle}` : "",
@@ -205,6 +293,10 @@ export async function scrapeAmazonProduct(url: string): Promise<RawProductData> 
 
     // 如果关键信息都提取不到，大概率是被反爬了
     if (!finalTitle && !finalPrice && features.length === 0 && !finalDescription) {
+      logScrapeDiagnostic("Fallback Reason", {
+        reason: getFallbackReason(pageType),
+        pageType,
+      });
       return createFallback("页面内容提取失败，可能遇到反爬验证或页面结构变化");
     }
 
@@ -219,6 +311,10 @@ export async function scrapeAmazonProduct(url: string): Promise<RawProductData> 
       source: "scraped",
     };
   } catch (error) {
+    logScrapeDiagnostic("Fallback Reason", {
+      reason: getCatchFallbackReason(error),
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return createFallback(
       error instanceof Error ? `抓取失败: ${error.message}` : "抓取失败: 未知错误"
     );
