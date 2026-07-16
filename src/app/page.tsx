@@ -283,8 +283,15 @@ export default function Home() {
   /**
    * 键盘事件：输入框内按 Enter 直接提交
    */
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && status !== STATUS.LOADING) {
+      e.preventDefault();
+      handleAnalyze();
+    }
+  };
+
+  const handleFallbackKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && status !== STATUS.LOADING) {
       e.preventDefault();
       handleAnalyze();
     }
@@ -327,7 +334,7 @@ export default function Home() {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleUrlKeyDown}
               placeholder="https://www.amazon.com/dp/B0XXXXXXXX"
               className="flex-1 px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-slate-900 placeholder:text-slate-400 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
               disabled={urlInputDisabled}
@@ -358,6 +365,7 @@ export default function Home() {
               <textarea
                 value={fallbackText}
                 onChange={(e) => setFallbackText(e.target.value)}
+                onKeyDown={handleFallbackKeyDown}
                 placeholder="请粘贴 Amazon 商品标题、Bullet Points 或商品描述。支持粘贴全部内容，信息越完整，分析结果越准确。"
                 rows={6}
                 className="w-full px-4 py-3 rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-slate-900 placeholder:text-slate-400 resize-none"
