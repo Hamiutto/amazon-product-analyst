@@ -416,12 +416,29 @@ export default function Home() {
                 <h2 className="text-lg font-bold text-slate-900 mb-4">📸 商品图片</h2>
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {images.slice(0, 5).map((img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      alt={`商品图片 ${i + 1}`}
-                      className="w-32 h-32 object-cover rounded-lg border border-slate-200 flex-shrink-0"
-                    />
+                    <div key={i} className="w-40 flex-shrink-0">
+                      <a
+                        href={img}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Open original image"
+                      >
+                        <img
+                          src={img}
+                          alt={`商品图片 ${i + 1}`}
+                          className="w-40 h-40 object-contain rounded-lg border border-slate-200 bg-slate-50"
+                        />
+                      </a>
+                      <a
+                        href={img}
+                        download
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 block text-center text-xs font-medium text-blue-600 hover:underline"
+                      >
+                        Download Image
+                      </a>
+                    </div>
                   ))}
                 </div>
               </div>
