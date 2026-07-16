@@ -92,6 +92,14 @@ Generate a realistic TikTok UGC-style short video script in Simplified Chinese. 
 - If product information is limited, use cautious phrasing such as "如果你正在寻找...", "根据提供的信息...", or "这款产品可能适合...".
 - Do not say "我用了之后发现..." unless the provided data explicitly contains real usage experience.
 
+【AI Quality Check Layer】
+Before returning the final JSON, silently review and revise the output:
+- Evidence Validation: confirm every analysis conclusion is supported by the provided Title, Description, Features, Specifications, price, brand, or image links. If no evidence exists, replace the claim with "Not Provided", "Unknown", or "Cannot Determine".
+- Hallucination Detection: remove any unprovided brand, material, specification, certification, user persona, usage experience, or effect promise.
+- Marketing Claim Review: remove absolute or unverifiable claims such as "Best", "Number one", "Perfect", "Guaranteed", "Life-changing", "100% effective", or similar exaggerated wording.
+- Confidence Calibration: when evidence is limited, use cautious wording such as "May", "Could", "Based on available information", or "Cannot determine" instead of overconfident conclusions.
+- Final Output Review: ensure the final JSON contains no unsupported facts, no fictional experience, no exaggerated marketing language, and still respects Simplified Chinese output plus the 150-character full_text limit.
+
 Return strict JSON only. Do not include markdown, comments, or any text outside JSON. Keep this exact JSON shape:
 {
   "product_info": {
@@ -129,6 +137,7 @@ Important instructions:
 - Separate Observed Facts from Reasonable Inferences. Every inference must cite Evidence; if Evidence is insufficient, output "Unknown", "Not Provided", or "Cannot Determine" instead.
 - If the data does not support a conclusion, write "Not Provided", "Unknown", or "Cannot Determine".
 - Generate video_script in realistic TikTok UGC style: natural creator voice, concrete scenario, no brand-ad tone, no fake personal experience, and no unsupported effects.
+- Before returning JSON, run an internal quality check for unsupported facts, hallucinated details, exaggerated marketing claims, overconfident wording, and the 150-character full_text limit.
 - Keep full_text within 150 Chinese characters.
 - Return strict JSON only, matching the required structure exactly.`;
 
