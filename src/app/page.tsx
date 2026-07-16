@@ -175,6 +175,14 @@ export default function Home() {
     setResult(null);
     setError("");
     setImages([]);
+    setCopyStatus("idle");
+    if (copyStatusTimerRef.current) {
+      clearTimeout(copyStatusTimerRef.current);
+      copyStatusTimerRef.current = null;
+    }
+    setTimeout(() => {
+      urlInputRef.current?.focus();
+    }, 0);
   };
 
   /**
