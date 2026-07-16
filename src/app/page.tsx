@@ -314,7 +314,7 @@ export default function Home() {
           {/* 降级模式时显示模式提示 */}
           {status === STATUS.FALLBACK && (
             <div className="mb-3 px-3 py-2 bg-amber-100 rounded-lg text-sm text-amber-800 font-medium">
-              📝 当前为手动输入模式（URL 已锁定，请在下方粘贴商品信息）
+              📝 自动解析未完成，请补充商品信息继续分析
             </div>
           )}
 
@@ -337,7 +337,7 @@ export default function Home() {
               disabled={status === STATUS.LOADING || (status !== STATUS.FALLBACK && !url.trim()) || (status === STATUS.FALLBACK && !fallbackText.trim())}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition whitespace-nowrap"
             >
-              {status === STATUS.LOADING ? "分析中..." : status === STATUS.FALLBACK ? "用手动输入分析" : "开始分析"}
+              {status === STATUS.LOADING ? "分析中..." : status === STATUS.FALLBACK ? "继续 AI 分析" : "开始分析"}
             </button>
           </div>
 
@@ -345,21 +345,20 @@ export default function Home() {
           {status === STATUS.FALLBACK && (
             <div className="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-xl">
               <p className="text-sm text-amber-800 mb-3">
-                ⚠️ {error}
+                Amazon 部分商品可能因网站限制无法自动获取完整内容。你仍可以粘贴商品信息，AI 将继续完成分析。
               </p>
               <div className="text-sm text-amber-700 mb-2 space-y-1">
-                <p className="font-medium">请前往 Amazon 页面，复制以下内容粘贴到下方：</p>
+                <p className="font-medium">请复制以下任意内容，粘贴到下面输入框即可：</p>
                 <ul className="list-disc list-inside ml-2 text-amber-600">
-                  <li>商品标题（页面顶部大标题）</li>
-                  <li>价格</li>
-                  <li>About this item 下的 Bullet Points（核心卖点列表）</li>
-                  <li>商品描述（Product Description，如有）</li>
+                  <li>✓ 商品标题（Title）</li>
+                  <li>✓ Bullet Points（商品卖点）</li>
+                  <li>✓ 商品描述（Description）</li>
                 </ul>
               </div>
               <textarea
                 value={fallbackText}
                 onChange={(e) => setFallbackText(e.target.value)}
-                placeholder="在这里粘贴商品标题、价格、功能描述等信息..."
+                placeholder="请粘贴 Amazon 商品标题、Bullet Points 或商品描述。支持粘贴全部内容，信息越完整，分析结果越准确。"
                 rows={6}
                 className="w-full px-4 py-3 rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none text-slate-900 placeholder:text-slate-400 resize-none"
               />
